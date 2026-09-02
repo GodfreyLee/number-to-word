@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NumberToWords.Web/NumberToWords.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NumberToWords.Tests/NumberToWords.Tests.csproj" />
+  </Folder>
+</Solution>

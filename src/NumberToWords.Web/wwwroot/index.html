@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Number to Words</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 3rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.25rem; }
+  form { display: flex; gap: 0.5rem; }
+  input { flex: 1; padding: 0.5rem; font-size: 1rem; }
+  button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+  .hint { margin: 0.4rem 0 0; font-size: 0.85rem; color: #666; }
+  #result { margin-top: 1.5rem; font-size: 1.1rem; min-height: 1.5em; }
+  #result.error { color: #b00020; }
+  #note { margin-top: 0.4rem; font-size: 0.9rem; font-style: italic; color: #666; }
+</style>
+</head>
+<body>
+  <h1>Number to Words</h1>
+  <form id="convert-form">
+    <label for="amount" style="display:none">Amount</label>
+    <input id="amount" name="amount" type="text" placeholder="e.g. 123.45" autocomplete="off" autofocus>
+    <button type="submit">Convert</button>
+  </form>
+  <!-- keep in sync with NumberToWordsConverter.MaxSupportedAmount -->
+  <p class="hint">Supports amounts from -9,223,372,036,854,775,807.99 to 9,223,372,036,854,775,807.99.</p>
+  <div id="result" role="status"></div>
+  <div id="note"></div>
+
+<script>
+  const form = document.getElementById('convert-form');
+  const amountInput = document.getElementById('amount');
+  const result = document.getElementById('result');
+  const note = document.getElementById('note');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    result.classList.remove('error');
+    result.textContent = 'Converting…';
+    note.textContent = '';
+
+    try {
+      const res = await fetch('/api/convert?amount=' + encodeURIComponent(amountInput.value));
+      const data = await res.json();
+
+      if (!res.ok) {
+        result.classList.add('error');
+        result.textContent = data.error || 'Something went wrong.';
+        return;
+      }
+
+      result.textContent = data.words;
+      note.textContent = data.note || '';
+    } catch {
+      result.classList.add('error');
+      result.textContent = 'Could not reach the server.';
+    }
+  });
+</script>
+</body>
+</html>
