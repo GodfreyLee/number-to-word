@@ -2,81 +2,84 @@
 
 ## What this is
 
-A web page where a user types a numeric amount (e.g. `123.45`) and a
-web-server routine converts it to words (e.g. `ONE HUNDRED AND TWENTY-THREE
-DOLLARS AND FORTY-FIVE CENTS`).
+A web page where the user types a number (e.g. `123.45`) and the app
+converts it to words (e.g. `ONE HUNDRED AND TWENTY-THREE DOLLARS AND
+FORTY-FIVE CENTS`).
 
-## Architecture: one minimal API project + one static HTML page
+## How the conversion works
 
-The whole app is a single conversion function behind a single HTTP endpoint,
-called from a single form. That maps to:
+The converter is in `NumberToWordsConverter.cs` as a single static function
+(`string Convert(string input)`). It uses lookup arrays for the words 0–19,
+the tens (20, 30, ... 90), and scale words (thousand, million, billion).
+
+**Core Logic (Adopted):**
+- The number is split into groups of three digits. Each group is converted
+  separately and combined with its scale word (THOUSAND, MILLION, etc.).
+  This keeps the lookup tables small — you only need words for 0–99 plus
+  the scale words.
+- "AND" goes between the hundreds and the remaining digits within a group
+  (e.g. `ONE HUNDRED AND TWENTY-THREE`), matching the expected output.
+- Cents are calculated using `decimal` arithmetic (not `double`) to avoid
+  rounding errors with money values.
+- Singular and plural are handled separately for dollars and cents, since
+  `$1.00` and `$0.01` each need a singular noun but in different halves.
+- All output is uppercase.
+
+## Banned Logic
+
+**A library or NuGet package** — packages like `Humanizer` convert numbers
+to words in one line: `1234.ToWords()`.
+- I would do it in a production app, but this not allowed to do so.
+
+**One lookup table** — just list every number would ever need:
+`1 → "ONE"`, `2 → "TWO"`, up to `999 → "NINE HUNDRED AND NINETY-NINE"`.
+- Works for small ranges but doesn't scale — covering millions and billions
+  would need millions of entries.
+- Waste of memories
+
+**String manipulation** — work with the number as a string of digits
+and use pattern matching to pick the right words.
+- Tends to produce tangled code with lots of `if` branches for edge cases
+  (e.g. `14` is "FOURTEEN", not "TEN-FOUR").
+- The lookup-table approach handles teens more cleanly by listing them
+  separately.
+
+
+## Architecture: one API + one HTML page
+
+The app has two parts:
 
 - **ASP.NET Core Minimal API** (`Program.cs`) — one route,
-  `GET /api/convert?amount=...`, returning JSON.
+  `GET /api/convert?amount=...`, that returns JSON.
 - **One static `wwwroot/index.html`** — a text input, a button, and ~20
-  lines of vanilla JavaScript calling `fetch()`.
+  lines of JavaScript that calls `fetch()`.
 
-**Rejected: MVC / Razor Pages.** MVC's controller/view/routing conventions
-exist to manage many endpoints and server-rendered views. There is one
-endpoint here and the "view" is a static form — the convention overhead buys
-nothing.
+**Why not MVC or Razor Pages?** MVC is designed for apps with many pages
+and server-rendered views. This app has one endpoint and one static form,
+so MVC's extra conventions would just add complexity for no benefit.
 
-**Rejected: a SPA framework (React/Angular/Vue).** A form with one field and
-one button doesn't need component state management, virtual DOM, or a build
-pipeline. Plain HTML + `fetch()` is the same UI with zero build step and
-nothing else to install.
+**Why not frontendframework like React/Angular/Vue?** A single form with one field and one button
+doesn't need a JavaScript framework. Plain HTML with `fetch()` does the
+same thing without a build step or extra dependencies.
 
-**Rejected: splitting the converter into its own class-library project.**
-A class library earns its keep when something *else* also consumes it. Here
-the only consumer is the web project and the only other reader is the test
-project, which can reference the web project directly. A third project
-would be structure with no second use case.
+**Why not a separate class library?** A separate library makes sense when
+multiple projects share the same code. Here only the web project uses the
+converter, and the test project can reference the web project directly.
+Adding a third project would be extra structure with no real benefit.
 
-## The conversion algorithm
 
-Implemented from scratch in `NumberToWordsConverter.cs` as a pure static
-function (`string Convert(string input)`), using only lookup arrays for the
-words 0-19 and the tens (20, 30, ... 90), plus scale words (thousand,
-million, billion). No parsing library, no globalization/culture-info number
-formatting, no NuGet package — per the exercise's constraint against using
-existing libraries for the solution itself.
 
-**Rejected: `CultureInfo`/`NumberFormatInfo`-based spelling, or a
-`System.Globalization` trick.** .NET has no built-in "number to words"
-API, but even partial tricks (e.g. formatting through a culture that spells
-numbers) would be exactly the kind of "let a library do the solution" the
-brief asks candidates to avoid, and wouldn't produce the "DOLLARS AND CENTS"
-phrasing anyway.
+## Input validation
 
-**Design choices in the algorithm itself:**
-- The integer part is split into groups of three digits (ones/tens/hundreds
-  triplets), each converted independently and joined with its scale word
-  (THOUSAND, MILLION, ...) — the standard way to keep the table sizes small
-  (only need words for 0-99 and the hundred/scale words) instead of a table
-  per magnitude.
-- "AND" is inserted between a hundreds digit and the remaining tens/ones
-  within a group (`ONE HUNDRED AND TWENTY-THREE`), matching the sample
-  output exactly; it is not inserted between higher-order groups.
-- Cents are computed as `round((amount - floor(amount)) * 100)` using
-  `decimal` arithmetic (not `double`) to avoid binary floating-point
-  rounding error on money values.
-- Singular/plural (`DOLLAR` vs `DOLLARS`, `CENT` vs `CENTS`) is handled for
-  the amount-equals-1 case on each side independently, since $1.00 and
-  $0.01 both need singular nouns but for different halves of the string.
-- All output is uppercase, matching the sample.
+The amount comes in as a string from the URL, parsed with
+`decimal.Parse(..., CultureInfo.InvariantCulture)`. If the input isn't a
+valid number, the app returns an HTTP 400 error with an explanation.
 
-## Input handling / validation
+Negative amounts are *not* rejected — a currency amount can legitimately be
+negative (a refund, a debit), so `-123.45` converts using its absolute value
+with a `NEGATIVE ` prefix: `NEGATIVE ONE HUNDRED AND TWENTY-THREE DOLLARS
+AND FORTY-FIVE CENTS`.
 
-The amount arrives as a string from the query parameter, parsed with
-`decimal.Parse(..., CultureInfo.InvariantCulture)`. Invalid text or a
-negative amount raises an `ArgumentException`, which the endpoint turns into
-an HTTP 400 with an error message — validated at the boundary (user input),
-per the rule that input validation shouldn't be skipped even under a
-"simplest approach" mandate.
+## What was left out
 
-## What was deliberately left out
-
-No database, authentication, logging framework, or configuration system —
-nothing in the brief calls for persisted state, multiple users, or
-environment-specific config. Adding any of those would be solving problems
-the exercise doesn't have.
+No database, login system, logging, security or configuration etc.
