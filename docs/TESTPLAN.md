@@ -28,6 +28,9 @@
 | 19 | `-123.45` | `NEGATIVE ONE HUNDRED AND TWENTY-THREE DOLLARS AND FORTY-FIVE CENTS` | Negative with cents |
 | 20 | `abc` | throws (rejected as invalid) | Non-numeric input must not crash the server |
 | 21 | `` (empty) | throws (rejected as invalid) | Empty input handled same as invalid |
+| 22 | `" 123.45"` | `ONE HUNDRED AND TWENTY-THREE DOLLARS AND FORTY-FIVE CENTS` | Leading whitespace shouldn't break parsing |
+| 23 | `"123.45 "` | `ONE HUNDRED AND TWENTY-THREE DOLLARS AND FORTY-FIVE CENTS` | Trailing whitespace shouldn't break parsing |
+| 24 | `"   "` (whitespace only) | throws (rejected as invalid) | No digits present, must not be treated as valid |
 
 ## Manual UI test steps
 
