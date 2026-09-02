@@ -21,9 +21,9 @@
 | 12 | `20.05` | `TWENTY DOLLARS AND FIVE CENTS` | Tens with zero ones digit |
 | 13 | `.45` | `FORTY-FIVE CENTS` | No leading digit before the decimal point |
 | 14 | `1.000` | `ONE DOLLAR` | Extra trailing zeros on decimal side parse cleanly to zero cents |
-| 15 | `1.005` | rounds to `1.01` (documented rounding rule) | Sub-cent precision must round, not truncate or throw |
+| 15 | `1.005` | Words `ONE DOLLAR AND ONE CENT`, Note `Amount rounded to 1.01 before conversion.` | Sub-cent precision must round, not truncate or throw, and the rounding must be disclosed |
 | 16 | `0.001` | `ZERO DOLLARS AND ZERO CENTS` | Whole amount is zero — both halves shown, nothing else to say |
-| 17 | `0.995` | `ONE DOLLAR` | Rounds up across the dollar boundary — must not produce ZERO DOLLARS AND ONE HUNDRED CENTS |
+| 17 | `0.995` | Words `ONE DOLLAR`, Note `Amount rounded to 1.00 before conversion.` | Rounds up across the dollar boundary — must not produce ZERO DOLLARS AND ONE HUNDRED CENTS |
 | 18 | `-5` | `NEGATIVE FIVE DOLLARS` | Negative amounts convert (refund/debit), not rejected |
 | 19 | `-123.45` | `NEGATIVE ONE HUNDRED AND TWENTY-THREE DOLLARS AND FORTY-FIVE CENTS` | Negative with cents |
 | 20 | `abc` | throws (rejected as invalid) | Non-numeric input must not crash the server |
@@ -31,6 +31,10 @@
 | 22 | `" 123.45"` | `ONE HUNDRED AND TWENTY-THREE DOLLARS AND FORTY-FIVE CENTS` | Leading whitespace shouldn't break parsing |
 | 23 | `"123.45 "` | `ONE HUNDRED AND TWENTY-THREE DOLLARS AND FORTY-FIVE CENTS` | Trailing whitespace shouldn't break parsing |
 | 24 | `"   "` (whitespace only) | throws (rejected as invalid) | No digits present, must not be treated as valid |
+| 25 | `9223372036854775807` (`long.MaxValue`) | starts `NINE QUINTILLION...`, ends `...SEVEN DOLLARS` | Largest value we support (see docs/APPROACH.md) |
+| 26 | `9223372036854775808` (`long.MaxValue` + 1) | throws `'...' is too large to convert. Maximum supported amount is 9,223,372,036,854,775,807.99.` | One past the limit — fits in `decimal` but overflows the `long` cast, message states the max |
+| 27 | `99999999999999999999999999999` (29 nines) | throws `'...' is too large to convert. Maximum supported amount is 9,223,372,036,854,775,807.99.` | Exceeds even `decimal`'s range; still a clear message with the max, not "not a valid number" |
+| 28 | `123.45` | Note is `null` | No rounding note when the input already has at most 2 decimal places |
 
 ## Manual UI test steps
 
@@ -48,6 +52,13 @@ form, click Convert, and check the displayed result:
 6. Decimal-only: type `.45` → confirm it's treated as `0.45`.
 7. Keyboard: confirm pressing Enter in the field submits the form (not just
    clicking the button).
+8. Limit hint: confirm the hint text under the form states the supported
+   range (`-9,223,372,036,854,775,807.99` to `9,223,372,036,854,775,807.99`).
+9. Rounding note: type `1.005` → see the words *and*, below them, `Amount
+   rounded to 1.01 before conversion.` Then convert `123.45` again and
+   confirm the note disappears (it shouldn't linger from the previous result).
+10. Too-large amount: type `99999999999999999999999999999` → see an error
+    that states the maximum supported amount.
 
 ## Out of scope
 
