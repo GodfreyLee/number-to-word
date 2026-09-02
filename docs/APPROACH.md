@@ -21,6 +21,11 @@ the tens (20, 30, ... 90), and scale words (thousand, million, billion).
   (e.g. `ONE HUNDRED AND TWENTY-THREE`), matching the expected output.
 - Cents are calculated using `decimal` arithmetic (not `double`) to avoid
   rounding errors with money values.
+- The amount is rounded to 2 decimal places first (half-away-from-zero,
+  e.g. `1.005` → `1.01`), *then* split into dollars and cents. Rounding
+  before splitting means a value like `0.995` correctly carries into the
+  dollar (`ONE DOLLAR AND ZERO CENTS`) instead of producing an invalid
+  `ZERO DOLLARS AND ONE HUNDRED CENTS`.
 - Singular and plural are handled separately for dollars and cents, since
   `$1.00` and `$0.01` each need a singular noun but in different halves.
 - All output is uppercase.
