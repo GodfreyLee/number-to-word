@@ -24,8 +24,13 @@ the tens (20, 30, ... 90), and scale words (thousand, million, billion).
 - The amount is rounded to 2 decimal places first (half-away-from-zero,
   e.g. `1.005` → `1.01`), *then* split into dollars and cents. Rounding
   before splitting means a value like `0.995` correctly carries into the
-  dollar (`ONE DOLLAR AND ZERO CENTS`) instead of producing an invalid
-  `ZERO DOLLARS AND ONE HUNDRED CENTS`.
+  dollar (`ONE DOLLAR`) instead of producing an invalid `ZERO DOLLARS AND
+  ONE HUNDRED CENTS`.
+- Whichever half is zero is left out of the sentence: `100` reads as
+  `ONE HUNDRED DOLLARS`, not `...AND ZERO CENTS`, and `0.99` reads as
+  `NINETY-NINE CENTS`, not `ZERO DOLLARS AND...`. The one exception is the
+  amount being zero altogether (`0` → `ZERO DOLLARS AND ZERO CENTS`) — there
+  has to be something left to say.
 - Singular and plural are handled separately for dollars and cents, since
   `$1.00` and `$0.01` each need a singular noun but in different halves.
 - All output is uppercase.
